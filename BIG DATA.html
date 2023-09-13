@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Arachnid Family Data</title>
+    <style>
+        details[open] > summary:before {
+            content: "▼";
+            padding-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Arachnid Family Data</h1>
+    <div id="data-container"></div>
+<!--thanks to "OpenAI's GPT-3" or "OpenAI's AI model" for noodling this out and ultimately replacing the mess I made of python flask api -->
+    <script>
+        // Fetch CSV data
+        fetch("https://api.ala.org.au/species//download?q=rkid_infraorder:https://biodiversity.org.au/afd/taxa/e3ceb6fe-0f7d-4df3-bd4b-87c688c6c3f5&")
+            .then(response => response.text())
+            .then(data => parseCSV(data))
+            .catch(error => console.error("Error fetching CSV:", error));
+
+// Parse CSV data and generate HTML
+function parseCSV(csvData) {
+    const lines = csvData.split("\n");
+    const families = {};
+
+    lines.forEach(line => {
+        const columns = line.split(",");
+        const taxonomicStatus = columns[4]; // Replace with the correct column index for 'taxonomicStatus'
+        const family = columns[8];  // Replace with the correct column index for 'family'
+        const genus = columns[7];   // Replace with the correct column index for 'genus'
+        const species = columns[3]; // Replace with the correct column index for 'scientificName'
+
+        // Exclude entries with 'accepted' status, URLs, numerical values, and empty species
+        if (taxonomicStatus !== "accepted" && !isURL(species) && !isNumeric(species) && species !== "") {
+            if (columns[1] === "species") { // Filter by taxonRank
+                if (genus === "Jotus") {
+                    // Special handling for placing "Jotus" inside "SALTICIDAE"
+                    const salticidaeFamily = "SALTICIDAE";
+                    if (!families[salticidaeFamily]) {
+                        families[salticidaeFamily] = {};
+                    }
+                    if (!families[salticidaeFamily][genus]) {
+                        families[salticidaeFamily][genus] = [];
+                    }
+                    families[salticidaeFamily][genus].push(species);
+                } else {
+                    if (!families[family]) {
+                        families[family] = {};
+                    }
+                    if (!families[family][genus]) {
+                        families[family][genus] = [];
+                    }
+                    families[family][genus].push(species);
+                }
+            }
+        }
+    });
+
+    renderHTML(families);
+}
+
+// Function to check if a string is a URL
+function isURL(str) {
+    const urlPattern = /^(http|https):\/\/[^\s/$.?#].[^\s]*$/;
+    return urlPattern.test(str);
+}
+
+// Function to check if a string is numeric
+function isNumeric(str) {
+    return !isNaN(parseFloat(str)) && isFinite(str);
+}
+
+// Render HTML content
+function renderHTML(families) {
+    const container = document.getElementById("data-container");
+
+    // Sort family names alphabetically
+    const sortedFamilies = Object.keys(families).sort();
+
+    sortedFamilies.forEach(family => {
+        const familyElement = document.createElement("details");
+        familyElement.innerHTML = `<summary>${family}</summary>`;
+
+        const genusContainer = document.createElement("div");
+        for (const genus in families[family]) {
+            const genusElement = document.createElement("details");
+            genusElement.innerHTML = `<summary>${genus}</summary>`;
+            const speciesList = families[family][genus].map(species => `<p>${species}</p>`).join("");
+            genusElement.innerHTML += speciesList;
+            genusContainer.appendChild(genusElement);
+        }
+
+        familyElement.appendChild(genusContainer);
+        container.appendChild(familyElement);
+    });
+}
+    </script>
+
+</body>
+</html>
